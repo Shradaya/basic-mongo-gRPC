@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+service MongoService {
+  rpc InsertDocument (InsertRequest) returns (InsertResponse);
+  rpc FindDocument (FindRequest) returns (FindResponse);
+}
+
+message InsertRequest {
+  string collection = 1;
+  string document = 2; // JSON string
+}
+
+message InsertResponse {
+  string message = 1;
+}
+
+message FindRequest {
+  string collection = 1;
+  string query = 2; // JSON string
+}
+
+message FindResponse {
+  string documents = 1; // JSON string array
+}
