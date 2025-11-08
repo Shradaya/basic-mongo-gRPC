@@ -2,7 +2,7 @@ syntax = "proto3";
 
 service MongoService {
   rpc InsertDocument (InsertRequest) returns (InsertResponse);
-  rpc FindDocument (FindRequest) returns (FindResponse);
+  rpc FindDocument (FindRequest) returns (stream FindResponse);
 }
 
 message InsertRequest {

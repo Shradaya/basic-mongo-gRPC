@@ -1,6 +1,17 @@
 import grpc
 import json
 from generated.db import db_pb2, db_pb2_grpc
+import jwt
+
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+JWT_SECRET = os.getenv("JWT_SECRET", "your_secret_key")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+
+def create_jwt(payload):
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def insert_document(stub):
     collection = "user"
@@ -12,8 +23,11 @@ def insert_document(stub):
         collection=collection,
         document=json.dumps(document)
     )
+    # Create JWT token (in real use, payload should be user info, etc.)
+    token = create_jwt({"user": "testuser"})
+    metadata = [("authorization", token)]
     try:
-        response = stub.InsertDocument(request)
+        response = stub.InsertDocument(request, metadata=metadata)
         print(f"✅ Insert response: {response.message}")
     except grpc.RpcError as e:
         print(f"❌ gRPC error: {e.details()}")
@@ -27,12 +41,14 @@ def find_documents(stub):
         collection=collection,
         query=json.dumps(query)
     )
+    # Create JWT token
+    token = create_jwt({"user": "testuser"})
+    metadata = [("authorization", token)]
     try:
-        response = stub.FindDocument(request)
         print("📦 Found documents:")
-
-        response_doc = response.documents
-        print(json.loads(response_doc))
+        for response in stub.FindDocument(request, metadata=metadata):
+            response_doc = response.documents
+            print(json.loads(response_doc))
     except grpc.RpcError as e:
         print(f"❌ gRPC error: {e.details()}")
 

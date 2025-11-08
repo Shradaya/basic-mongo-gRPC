@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from generated.db import db_pb2 as proto_dot_db__pb2
+import generated.db.db_pb2 as db__pb2
 
 GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in proto/db_pb2_grpc.py depends on'
+        + ' but the generated code in db_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -36,13 +36,13 @@ class MongoServiceStub(object):
         """
         self.InsertDocument = channel.unary_unary(
                 '/MongoService/InsertDocument',
-                request_serializer=proto_dot_db__pb2.InsertRequest.SerializeToString,
-                response_deserializer=proto_dot_db__pb2.InsertResponse.FromString,
+                request_serializer=db__pb2.InsertRequest.SerializeToString,
+                response_deserializer=db__pb2.InsertResponse.FromString,
                 _registered_method=True)
-        self.FindDocument = channel.unary_unary(
+        self.FindDocument = channel.unary_stream(
                 '/MongoService/FindDocument',
-                request_serializer=proto_dot_db__pb2.FindRequest.SerializeToString,
-                response_deserializer=proto_dot_db__pb2.FindResponse.FromString,
+                request_serializer=db__pb2.FindRequest.SerializeToString,
+                response_deserializer=db__pb2.FindResponse.FromString,
                 _registered_method=True)
 
 
@@ -66,13 +66,13 @@ def add_MongoServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'InsertDocument': grpc.unary_unary_rpc_method_handler(
                     servicer.InsertDocument,
-                    request_deserializer=proto_dot_db__pb2.InsertRequest.FromString,
-                    response_serializer=proto_dot_db__pb2.InsertResponse.SerializeToString,
+                    request_deserializer=db__pb2.InsertRequest.FromString,
+                    response_serializer=db__pb2.InsertResponse.SerializeToString,
             ),
-            'FindDocument': grpc.unary_unary_rpc_method_handler(
+            'FindDocument': grpc.unary_stream_rpc_method_handler(
                     servicer.FindDocument,
-                    request_deserializer=proto_dot_db__pb2.FindRequest.FromString,
-                    response_serializer=proto_dot_db__pb2.FindResponse.SerializeToString,
+                    request_deserializer=db__pb2.FindRequest.FromString,
+                    response_serializer=db__pb2.FindResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -100,8 +100,8 @@ class MongoService(object):
             request,
             target,
             '/MongoService/InsertDocument',
-            proto_dot_db__pb2.InsertRequest.SerializeToString,
-            proto_dot_db__pb2.InsertResponse.FromString,
+            db__pb2.InsertRequest.SerializeToString,
+            db__pb2.InsertResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -123,12 +123,12 @@ class MongoService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(
+        return grpc.experimental.unary_stream(
             request,
             target,
             '/MongoService/FindDocument',
-            proto_dot_db__pb2.FindRequest.SerializeToString,
-            proto_dot_db__pb2.FindResponse.FromString,
+            db__pb2.FindRequest.SerializeToString,
+            db__pb2.FindResponse.FromString,
             options,
             channel_credentials,
             insecure,
