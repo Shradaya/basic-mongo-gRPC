@@ -1,17 +1,6 @@
 import grpc
 import json
 from generated.db import db_pb2, db_pb2_grpc
-import jwt
-
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-JWT_SECRET = os.getenv("JWT_SECRET", "your_secret_key")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-
-def create_jwt(payload):
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 def insert_document(stub):
     collection = "user"
@@ -23,11 +12,8 @@ def insert_document(stub):
         collection=collection,
         document=json.dumps(document)
     )
-    # Create JWT token (in real use, payload should be user info, etc.)
-    token = create_jwt({"user": "testuser"})
-    metadata = [("authorization", token)]
     try:
-        response = stub.InsertDocument(request, metadata=metadata)
+        response = stub.InsertDocument(request)
         print(f"✅ Insert response: {response.message}")
     except grpc.RpcError as e:
         print(f"❌ gRPC error: {e.details()}")
@@ -41,19 +27,30 @@ def find_documents(stub):
         collection=collection,
         query=json.dumps(query)
     )
-    # Create JWT token
-    token = create_jwt({"user": "testuser"})
-    metadata = [("authorization", token)]
     try:
         print("📦 Found documents:")
-        for response in stub.FindDocument(request, metadata=metadata):
+        for response in stub.FindDocument(request):
             response_doc = response.documents
             print(json.loads(response_doc))
     except grpc.RpcError as e:
         print(f"❌ gRPC error: {e.details()}")
 
 def run():
-    with grpc.insecure_channel("localhost:50051") as channel:
+    # Load certificates for mTLS
+    with open("certs/client.crt", "rb") as f:
+        client_cert = f.read()
+    with open("certs/client.key", "rb") as f:
+        client_key = f.read()
+    with open("certs/ca.crt", "rb") as f:
+        ca_cert = f.read()
+
+    credentials = grpc.ssl_channel_credentials(
+        root_certificates=ca_cert,
+        private_key=client_key,
+        certificate_chain=client_cert
+    )
+
+    with grpc.secure_channel("localhost:50051", credentials) as channel:
         stub = db_pb2_grpc.MongoServiceStub(channel)
 
         while True:

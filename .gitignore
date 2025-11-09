@@ -130,3 +130,7 @@ Thumbs.db
 *.temp
 *.swp
 *.swo
+*.crt
+*.csr
+*.key
+*.srl

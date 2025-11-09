@@ -1,26 +1,10 @@
+import os
 import grpc
 import json
 from concurrent import futures
 from pymongo import MongoClient, errors
 from generated.db import db_pb2, db_pb2_grpc
-import jwt
-from jwt import InvalidTokenError
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
-JWT_SECRET = os.getenv("JWT_SECRET", "your_secret_key")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-
-def create_jwt(payload):
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-
-def decode_jwt(token):
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        return payload
-    except InvalidTokenError:
-        return None
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB = os.getenv("MONGO_DB", "local")
 try:
@@ -33,12 +17,6 @@ except errors.ServerSelectionTimeoutError as e:
 
 class MongoService(db_pb2_grpc.MongoServiceServicer):
     def InsertDocument(self, request, context):
-        # JWT validation
-        token = dict(context.invocation_metadata()).get('authorization')
-        if not token or not decode_jwt(token):
-            context.set_code(grpc.StatusCode.UNAUTHENTICATED)
-            context.set_details("Invalid or missing JWT token.")
-            return db_pb2.InsertResponse(message="❌ Unauthorized.")
         try:
             collection = db[request.collection]
             document = json.loads(request.document)
@@ -60,13 +38,6 @@ class MongoService(db_pb2_grpc.MongoServiceServicer):
             return db_pb2.InsertResponse(message=f"❌ Unexpected error: {e}")
 
     def FindDocument(self, request, context):
-        # JWT validation
-        token = dict(context.invocation_metadata()).get('authorization')
-        if not token or not decode_jwt(token):
-            context.set_code(grpc.StatusCode.UNAUTHENTICATED)
-            context.set_details("Invalid or missing JWT token.")
-            yield db_pb2.FindResponse()
-            return
         try:
             collection = db[request.collection]
             query = json.loads(request.query)
@@ -88,11 +59,25 @@ class MongoService(db_pb2_grpc.MongoServiceServicer):
             yield db_pb2.FindResponse()
 
 def serve():
+    # Load certificates for mTLS
+    with open("certs/server.crt", "rb") as f:
+        server_cert = f.read()
+    with open("certs/server.key", "rb") as f:
+        server_key = f.read()
+    with open("certs/ca.crt", "rb") as f:
+        ca_cert = f.read()
+
+    server_credentials = grpc.ssl_server_credentials(
+        [(server_key, server_cert)],
+        root_certificates=ca_cert,
+        require_client_auth=True
+    )
+
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     db_pb2_grpc.add_MongoServiceServicer_to_server(MongoService(), server)
-    server.add_insecure_port("[::]:50051")
+    server.add_secure_port("[::]:50051", server_credentials)
 
-    print("🚀 Server is running on port 50051...")
+    print("🚀 Server is running with mTLS on port 50051...")
     try:
         server.start()
         server.wait_for_termination()
